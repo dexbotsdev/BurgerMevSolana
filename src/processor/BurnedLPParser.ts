@@ -1,33 +1,20 @@
 import logger from "service/Logger";
 import { getPairData } from "./TokenProcessor";
+import TokenCheckService from "../api/TokenCheckService";
 
 export const processMessage = async(message: { message: any })=>{
 
     if(message && message.message){
             const text = message.message; 
             const addressInmessage = parseAddress(text); 
-
-
-            console.log(addressInmessage);
-            if(text.indexOf('Marketcap')>0){
-
-                const data=  parseNewPool(text);
-
-                return {
-                    result: data,
-                    type:1
-                }
-            }
+  
             if(addressInmessage){
 
-                const data = await getPairData(addressInmessage.tokenAddress);
- 
-                if(data.tokenName && data.tokenAddress && data.currPrice && data.tokenSymbol && data.tokenMC){ 
-                    return {
-                        result: data,
-                        type:2
-                    }
-                }
+                 const checkerService = new TokenCheckService(addressInmessage.tokenAddress);
+                 const results = await checkerService.analyze();
+
+           
+                 return results;
             } else return null;
 
     }
@@ -77,3 +64,6 @@ function parseNewPool(text: any) {
     
     return {tokenAddress: solanaAddress};
 }
+
+
+ 

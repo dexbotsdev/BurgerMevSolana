@@ -1,131 +1,161 @@
 import { EventEmitter } from 'emitter'
 import fs from 'fs'
-import logger from './service/Logger'; 
+import logger from './service/Logger';
 import TelegramAccountService from './service/TelegramAccountService';
-import { Channels, sequelize, TokenCalls } from './database/db';
-import moment from 'moment';
-import OrderService from './service/OrderService';
+import { sequelize, TokenCalls, TradeLogs } from './database/db';
+import TokenCheckService from './api/TokenCheckService';
+import { Keypair,PublicKey } from '@solana/web3.js';
+import { HttpProvider } from '@bloxroute/solana-trader-client-ts';
+import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
+import { connection, MAINNET_API_HTTP, MAINNET_AUTH_HEADER, requestConfig } from './config';
+import PricingService from './service/PricingService';
+import TradeService from './service/TradeService';
+import { getWalletTokenBalance } from './utils/util';
  
 const eventEmitter = new EventEmitter();
 eventEmitter.setMaxListeners(999);
 
-let config = null;
  async function start() {
-  await sequelize.sync({ force: false, alter: true });
-
-  let buyserviceConfig=[];
-  let sellserviceConfig=[];
-
-  fs.readFile('./client.config.json', 'utf8', (error:any, data) => {
+  await sequelize.sync({ force: false, alter: true }); 
+  fs.readFile('./client.config.json', 'utf8', (error: any, data) => {
     if (error) {
-     logger.debug(error);
+      logger.debug(error);
       return;
-    }
-    
+    } 
     const config = JSON.parse(data);
-    let testmode=config.testmode;
+    let testmode = config.testMode; 
+    const wallet = Keypair.fromSecretKey(Uint8Array.from(config.privateKey));
+    const provider = new HttpProvider(
+      MAINNET_AUTH_HEADER,
+      bs58.encode(config.privateKey),
+      MAINNET_API_HTTP,
+      requestConfig
+    ) 
 
-    const tsA = new TelegramAccountService(config, eventEmitter); 
-    
+    const tsA = new TelegramAccountService(config, eventEmitter);
+    const pricer = new PricingService(config,provider,wallet);
+    const trader = new TradeService(config,provider,wallet);
+
+
     eventEmitter.on('newListener', (event: string, listener: any) => {
-      logger.debug(`Added Signal Repeater Server ${event.toUpperCase()} listener.`);
+      logger.debug(`Added  ${event.toUpperCase()} listener.`);
     });
 
-    eventEmitter.on('buyOrderCompleted', async (tradeSignal: any) => {
- 
-      console.log(tradeSignal); 
-      
-      if(tradeSignal.tnx.status == 1){
+    eventEmitter.on('buyOrderCompleted', async (monitor: any) => {
 
-        const OService :OrderService= sellserviceConfig[tradeSignal.tokenAddress] ;
-        OService.setTokenBalance(tradeSignal.tokenBalance);
+      logger.sponsor(JSON.stringify(monitor,null,0));
+      const tokenMint = new PublicKey(monitor.tokenAddress);
+      let tokenBalance = await getWalletTokenBalance(connection, wallet.publicKey, tokenMint);
 
-
-        const sellExpiry = config.sellExpiry *60*1000;
-        const buyTime = Date.now();
-        setInterval(()=>{
-          try{
-            OService.getCurrentProfits().then((currentProfits)=>{
-
-              logger.info('Current profit = '+ currentProfits +' Take Profit Target '+ config.takeProfit);
-               if((Date.now()-buyTime) > sellExpiry || Number(currentProfits) > Number(config.takeProfit) || Number(currentProfits)<= -Number(config.stopLoss))
-              {
-
-                if(Number(currentProfits)<= -Number(config.stopLoss))
-                logger.info('SELLING TOKEN FOR MEETING STOPLOSS')
-                if((Date.now()-buyTime) > sellExpiry || Number(currentProfits))
-                logger.info('SELLING TOKEN FOR MEETING TIMELIMIT')
-                if(Number(currentProfits) > Number(config.takeProfit))
-                logger.info('SELLING TOKEN FOR MEETING TAKEPROFIT')
-
-                OService.sellToken();
-
-              }
-            }) 
-          }catch(error){
-            logger.error('error')
-          }
-        
-
-        },config.priceRefreshInterval*2000)
+      if(config.testMode==true){
+        const resp = await trader.getBuyPrice(monitor.tokenAddress, config.buyInputAmount,config.slippage);
+        tokenBalance = resp.outAmount.toFixed();
       }
+
+      logger.info('Current Token Balance is '+ tokenBalance);
+      const avgBuyPrice = Number(Number(config.buyInputAmount)/Number(tokenBalance)).toFixed(12);
+
+      monitor.avgBuyPrice = avgBuyPrice;
+      monitor.tokenBalance = tokenBalance;
+
+      const tokenTrades = new TradeLogs(monitor);
+      await tokenTrades.save();
+    
+       logger.debug(' Keep Polling for Prices and Sell off ')
+
+       trader.monitorToken(monitor)
 
 
     })
     eventEmitter.on('newSignal', async (tradeSignal: any) => {
       logger.debug('Recieved ');
-      logger.debug(tradeSignal);
 
-     const oldSignal = await  TokenCalls.findOne({where :{
-        tokenAddress : tradeSignal.tokenAddress
-      }})
+      const oldSignal = await TokenCalls.findOne({
+        where: {
+          tokenAddress: tradeSignal.tokenAddress
+        }
+      })
 
-      if(oldSignal && oldSignal.dataValues && oldSignal.dataValues.tokenAddress && !testmode) {
+      if (oldSignal && oldSignal.dataValues && oldSignal.dataValues.tokenAddress && !testmode) {
         logger.error('skipping Duplicates')
-      }else {
-        await TokenCalls.create(tradeSignal);
-        try{
+      } else {
+
+      
+        try {
+
+          const pot = new Date(Number(tradeSignal.poolOpenTime)*1000);
+          const nowd = Date.now();
+
+          if(nowd < pot.getTime())
+          {
+            logger.debug('Pool is Not Yet Opened for Trading ');
+            return;
+
+          }
+
+          const mcCheck = Number(config.minLiquidity) <= Number(tradeSignal.liquiditySOL) ? 'OK' : 'Failed Liquidity Check of '+ Number(config.minLiquidity)+' SOLS';
+           const fdvCheck = Number(tradeSignal.liquidityUSDC) <= Number(config.maxTokenMC) ? 'OK' : ' Failed Mcap check of '+ Number(config.liquidityUSDC)+' ';
+          const mintableCheck = !tradeSignal.mintable ? 'OK' : ' Failed Mintable Check : Token is Mintable ';
+          const freeZableCheck = !tradeSignal.freezeaBle ? 'OK' : ' Failed Freezable Check : Token is Freezable ';
+
+ 
+          if (mcCheck == 'OK' && fdvCheck == 'OK' && mintableCheck =='OK' && freeZableCheck=='OK') { 
+            logger.debug(' Preparing Token Info for Buy/sell ' + tradeSignal.tokenSymbol + ' with 0.01 ' + tradeSignal.quoteSymbol);
          
-          const mcCheck = Number(config.minLiquidity)<=Number(tradeSignal.liquidity) ? 'OK':'Failed Liquidity Check of 15 SOLS';
-          const tokenAge = Number(tradeSignal.tokenAge)  > Number(Date.now()-Number(config.maxTokenAgeGap) * 60 * 1000) ? 'OK': ' Failed Age Check of 10 Minutes';
-          const fdvCheck = Number(tradeSignal.tokenMC) <=Number(config.maxTokenMC) ? 'OK': ' Failed Mcap check of 30k ';
+            try {
+              logger.debug(' Buying Token ' + tradeSignal.tokenSymbol + ' with 0.01 ' + tradeSignal.quoteSymbol);
 
-  
-          if(mcCheck=='OK' && tokenAge=='OK' && fdvCheck=='OK'){ 
+              trader.buyToken(tradeSignal.tokenAddress, config.buyInputAmount,config.slippage).then(async (result)=>{
 
-            logger.debug(' Preparing Token Info for Buy/sell '+ tradeSignal.tokenAddress +' with 0.01 '+tradeSignal.baseAddress);
+                logger.debug('Token Bought -- Checking Transaction - Create Websocket and Listen.')
 
-        const OService = new OrderService(tradeSignal,eventEmitter,config);
-        const SService = new OrderService(tradeSignal,eventEmitter,config);
+                connection.onSignature(result, (sigresult) => {
+                  logger.debug('Listening to Data ')
 
-        await OService.preparePoolInfo();
-        await SService.preparePoolInfo();
+                  if(sigresult.err ==null ){
 
+                    logger.debug('Emitting Token Data for Sell Monitoring ')
+                    const monitor = {
+                      tokenAddress : tradeSignal.tokenAddress,
+                      tnxSignature : result
+                    }
+    
+                    let tokenTrade = {
+                      tokenSymbol:tradeSignal.tokenSymbol,
+                      tokenAddress: tradeSignal.tokenAddress,
+                      buyTime: Date.now(), 
+                      buyAmount: config.buyInputAmount,
+                      sellTime:null,
+                      sellAmount:0,
+                      sold:false,
+                      avgBuyPrice:0
+                    }
+                    
+                    
+                    eventEmitter.emit('buyOrderCompleted', tokenTrade);
+                  }
+                }) 
+              }).catch((Error)=>{
+                  
+                console.log('Buy Failed '+ Error);
+              })
 
-        buyserviceConfig[tradeSignal.tokenAddress] = OService;
-        sellserviceConfig[tradeSignal.tokenAddress] = SService;
-        
-
-        try{
-             logger.debug(' Buying Token '+ tradeSignal.tokenAddress +' with 0.01 '+tradeSignal.baseAddress);
-
-              OService.buyNewToken();
-
-            }catch(error){
+            } catch (error) {
               logger.error(error)
             }
           } else {
 
-            logger.error('Liquidity Check '+mcCheck +' Actual ' +Number(tradeSignal.liquidity));
-            logger.error('Age Check '+tokenAge +' Actual ' +new Date(tradeSignal.tokenAge));
-            logger.error('Mcap check '+fdvCheck +' Actual ' +Number(tradeSignal.tokenMC));
+             logger.error('Liquidity Check :- ' + mcCheck + ' Actual ' + Number(tradeSignal.liquiditySOL));
+             logger.error('Mcap check :-  ' + fdvCheck + ' Actual ' + Number(tradeSignal.liquidityUSDC));
+             logger.error('Mintable check :-  ' + mintableCheck + ' Actual ' + tradeSignal.mintable);
+             logger.error('Freezable check  :- ' + freeZableCheck + ' Actual ' + tradeSignal.freezeaBle);
           }
- 
 
-        }catch(error){
+
+        } catch (error) {
           logger.debug(error)
         }
-      } 
+      }
 
     });
 
@@ -133,14 +163,14 @@ let config = null;
     eventEmitter.on('Disconnected', (message: string) => {
       logger.debug('Disconnected -- need to restart ' + message.toUpperCase());
       eventEmitter.removeAllListeners();
-      tsA.disconnect(); 
+      tsA.disconnect();
       start();
 
     });
 
-    
 
- 
+
+
 
   })
 }

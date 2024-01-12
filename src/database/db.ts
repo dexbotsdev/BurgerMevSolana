@@ -13,6 +13,11 @@ export const sequelize = new Sequelize({
 });
 
 
+class TradeLogs extends Model { 
+};
+
+
+
 class TokenCalls extends Model { 
 };
 
@@ -20,7 +25,62 @@ class TokenCalls extends Model {
 class UpdateLogs extends Model{ 
 
 }
-
+ 
+    
+TradeLogs.init({
+  // Model attributes are defined here
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  }, 
+  tokenAddress: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  tokenSymbol: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  buyTime: {
+    type: DataTypes.DATE,
+    defaultValue:Date.now(),
+    allowNull: false,
+  },
+  buyAmount: {
+    type: DataTypes.NUMBER,
+    defaultValue:0,
+    allowNull: false,
+  }, 
+  avgBuyPrice: {
+    type: DataTypes.NUMBER,
+    defaultValue:0,
+    allowNull: false,
+  }, 
+  tokenBalance: {
+    type: DataTypes.NUMBER,
+    defaultValue:0,
+    allowNull: false,
+  },  
+  sellTime: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  }, 
+  sellAmount: {
+    type: DataTypes.NUMBER,
+    defaultValue:0,
+    allowNull: false,
+  }, 
+  sold: {
+    type: DataTypes.BOOLEAN,
+    defaultValue:false,
+    allowNull: false,
+  }, 
+},
+  {
+    tableName: 'TradeLogs',
+    sequelize,
+  });
 
 UpdateLogs.init({
   // Model attributes are defined here
@@ -70,39 +130,6 @@ TokenCalls.init({
   tokenName: {
     type: DataTypes.STRING,
     allowNull: true,
-  },
-  tokenAge: {
-    type: DataTypes.DATE,
-    allowNull: false,
-  },
-  tokenMC: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-  },
-  liquidity: {
-    type: DataTypes.FLOAT,
-    allowNull: false,
-  },
-  currPrice: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  athROI: {
-    type: DataTypes.STRING,
-    defaultValue:"0.0",
-    allowNull: true,
-  },
-  chainId: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  url: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  dex: {
-    type: DataTypes.STRING,
-    allowNull: false,
   }, 
 },
   {
@@ -148,4 +175,4 @@ TokenCalls.init({
   
  
       
-export { TokenCalls, Channels ,UpdateLogs };
+export { TokenCalls, Channels ,UpdateLogs,TradeLogs };

@@ -3,7 +3,7 @@ import Logger, { LoggerOptions } from "@ptkdev/logger";
 const options :LoggerOptions = {
 	"language": "en", // set language of log type, NOTE: please help with translations! (optional, default en - values: en|it|pl|es|pt|de|ru)
 	"colors": true,  // enable/disable colors in terminal (optional, default enabled - values: true|enabled or false|disabled)
-	"debug": false,   // enable/disable all logs with method debug (optional, default enabled - values: true|enabled or false|disabled)
+	"debug": true,   // enable/disable all logs with method debug (optional, default enabled - values: true|enabled or false|disabled)
 	"info": true,    // enable/disable all logs with method info (optional, default enabled - values: true|enabled or false|disabled)
 	"warning": false, // enable/disable all logs with method warning (optional, default enabled -  values: true|enabled or false|disabled)
 	"error": true,   // enable/disable all logs with method errors (optional, default enabled - values: true|enabled or false|disabled)

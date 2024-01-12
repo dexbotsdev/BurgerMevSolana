@@ -70,7 +70,7 @@ class OrderService {
             logger.debug('Buy Token ' + this.t.tokenSymbol);
 
             const inputToken = DEFAULT_TOKEN.SOL // USDC
-            const slippage = new Percent(0, 100)
+            const slippage = new Percent(25, 100)
             logger.debug('Swapping from intoken to out token ');
             const { status, baseMint, quoteMint, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId, baseDecimal, quoteDecimal, } = this.fields;
 
@@ -82,7 +82,7 @@ class OrderService {
 
 
             const targetPool = this.t.pairAddress;
-            const inputTokenAmount = new TokenAmount(inputToken, this.c.buyInputAmount * 10 ** baseDecimal.toNumber());
+            const inputTokenAmount = new TokenAmount(inputToken, this.c.buyInputAmount * 10 ** WSOL.decimals);
 
             this.poolInfo = await Liquidity.fetchInfo({ connection, poolKeys: this.poolKeys })
             const { amountOut,
@@ -118,14 +118,14 @@ class OrderService {
 
             logger.debug('Swapping from   inputAmount ' + inputTokenAmount.toFixed())
             logger.debug('amountOut:' + amountOut.toSignificant() + '  minAmountOut: ' + minAmountOut.toSignificant())
-            logger.debug('currentPrice:' + currentPrice.invert().toFixed() + '  executionPrice: ' + executionPrice?.toSignificant())
+            logger.debug('currentPrice:' + currentPrice.invert().toFixed() + '  executionPrice: ' + executionPrice?.invert().toSignificant())
             logger.debug('priceImpact:' + priceImpact.toSignificant() + '  fee: ' + fee.toSignificant())
             const tnx = await buildAndSendTx(innerTransactions, this.wallet);
             logger.debug(parseInt('' + Number(this.c.buyInputAmount) * 10 ** baseDecimal.toNumber() / Number(currentPrice.invert().toFixed())).toString())
 
             const orderCompleted = {
                 ...this.t,
-                tokenBalance: parseInt('' + Number(this.c.buyInputAmount) / Number(currentPrice.invert().toFixed())),
+                tokenBalance: minAmountOut.raw.toString(),
                 tnx
             }
 
@@ -154,11 +154,11 @@ class OrderService {
             const { status, baseMint, quoteMint, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId, baseDecimal, quoteDecimal, } = this.fields;
     
             let inputToken = new Token(TOKEN_PROGRAM_ID, baseMint, baseDecimal.toNumber(), this.t.tokenName, this.t.tokenSymbol);
-            let inputTokenAmount = new TokenAmount(inputToken, parseInt('' + Number(tokenbalance) * 10 ** baseDecimal));
+            let inputTokenAmount = new TokenAmount(inputToken, tokenbalance);
     
             if (baseMint.toString() == WSOL.mint.toString()) {
                 inputToken = new Token(TOKEN_PROGRAM_ID, quoteMint, quoteDecimal.toNumber(), this.t.tokenName, this.t.tokenSymbol);
-                inputTokenAmount = new TokenAmount(inputToken, parseInt('' + Number(tokenbalance) * 10 ** quoteDecimal));
+                inputTokenAmount = new TokenAmount(inputToken, tokenbalance);
             }
             const outputToken = DEFAULT_TOKEN.SOL // USDC
     
@@ -177,6 +177,16 @@ class OrderService {
                     currencyOut: outputToken,
                     slippage: slippage,
                 })
+
+                    
+            logger.debug('Swapping Liquidity  ')
+    
+            logger.debug('Swapping from   inputAmount ' + inputTokenAmount.toFixed())
+            logger.debug('amountOut:' + amountOut.toSignificant() + '  minAmountOut: ' + minAmountOut.toSignificant())
+            logger.debug('currentPrice:' + currentPrice.toFixed() + '  executionPrice: ' + executionPrice?.toSignificant())
+            logger.debug('priceImpact:' + priceImpact.toSignificant() + '  fee: ' + fee.toSignificant())
+
+
             if (amountOut.isZero()) return { txids: { status: 0 } };
     
     
@@ -193,13 +203,7 @@ class OrderService {
                 makeTxVersion,
             })
     
-    
-            logger.debug('Swapping Liquidity  ')
-    
-            logger.debug('Swapping from   inputAmount ' + inputTokenAmount.toFixed())
-            logger.debug('amountOut:' + amountOut.toSignificant() + '  minAmountOut: ' + minAmountOut.toSignificant())
-            logger.debug('currentPrice:' + currentPrice.toFixed() + '  executionPrice: ' + executionPrice?.toSignificant())
-            logger.debug('priceImpact:' + priceImpact.toSignificant() + '  fee: ' + fee.toSignificant())
+
             const tnx = await buildAndSendTx(innerTransactions, this.wallet);
             logger.debug(tnx.toString())
     
@@ -221,8 +225,9 @@ class OrderService {
     getCurrentProfits = async () => {
        
         try{
-            const tokenbalance = this.tokenBalance; //await getWalletTokenBalance(connection, this.wallet.publicKey, new PublicKey(this.t.tokenAddress));
-            logger.debug('Current Token ' + this.t.tokenSymbol + ' Balance is ' + tokenbalance); 
+            const tokenbalance = this.tokenBalance; //
+            const bal = await getWalletTokenBalance(connection, this.wallet.publicKey, new PublicKey(this.t.tokenAddress));
+            logger.debug('Current Token ' + this.t.tokenSymbol + ' Balance is ' + bal.toString()); 
      
             const slippage = new Percent(0, 100)
             const version: 4 | 5 = 4;
@@ -231,11 +236,11 @@ class OrderService {
     
     
             let inputToken = new Token(TOKEN_PROGRAM_ID, baseMint, baseDecimal.toNumber(), this.t.tokenName, this.t.tokenSymbol);
-            let inputTokenAmount = new TokenAmount(inputToken, parseInt('' + tokenbalance * 10 ** baseDecimal));
+            let inputTokenAmount = new TokenAmount(inputToken,  tokenbalance);
     
             if (baseMint.toString() == WSOL.mint.toString()) {
                 inputToken = new Token(TOKEN_PROGRAM_ID, quoteMint, quoteDecimal.toNumber(), this.t.tokenName, this.t.tokenSymbol);
-                inputTokenAmount = new TokenAmount(inputToken, parseInt('' + tokenbalance * 10 ** quoteDecimal));
+                inputTokenAmount = new TokenAmount(inputToken, bal);
             }
             const outputToken = DEFAULT_TOKEN.SOL // USDC
     
@@ -258,11 +263,11 @@ class OrderService {
             logger.debug('currentPrice:' + currentPrice.toFixed() + '  executionPrice: ' + executionPrice?.toSignificant())
             logger.debug('priceImpact:' + priceImpact.toSignificant() + '  fee: ' + fee.toSignificant())
     
-            const buyPrice = Number(this.c.buyInputAmount) / Number(tokenbalance)
+            const buyPrice = Number(this.c.buyInputAmount)  
     
-            const ifSold = Number(currentPrice.toFixed()) * Number(tokenbalance);
+            const ifSold = Number(currentPrice.toFixed()) * Number(inputTokenAmount.toFixed());
     
-            const profit = (Number(currentPrice.toFixed()) - buyPrice) * 100 / buyPrice;
+            const profit = (Number(amountOut.toSignificant()) - buyPrice) * 100 / buyPrice;
     
             logger.debug('For   buyprice ' + buyPrice.toFixed(12))
     
@@ -271,7 +276,7 @@ class OrderService {
     
             return profit;
         }catch(error){
-            logger.error(error.toString());
+            logger.error(error);
         }
        
 

@@ -18,6 +18,6 @@
   "priceRefreshInterval":5,
   "buyInputAmount":0.1,
   "sellExpiry":10,
-  "testmode":true
+  "testMode":true
 
 }

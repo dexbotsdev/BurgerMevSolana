@@ -25,9 +25,7 @@ export const processMessage = async(message: { message: any })=>{
             const text = message.message;
 
  
-            const addressInmessage = parseAddress(text);
-
- 
+            const addressInmessage = parseAddress(text); 
 
             if(addressInmessage){
 

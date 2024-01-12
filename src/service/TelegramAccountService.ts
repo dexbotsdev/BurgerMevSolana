@@ -6,6 +6,7 @@ import { EventEmitter } from 'emitter'
 import { Channels } from "../database/db"; 
 import { processMessage } from "../processor/BurnedLPParser";
  import TokenCheckService from "../api/TokenCheckService";
+import logger from "./Logger";
 
 class TelegramAccountService {
     client: TelegramClient;
@@ -135,17 +136,13 @@ class TelegramAccountService {
 
                 if (this.chatIds.includes(Number(chatId))) {
 
-                     console.log('------------------------------------------------------');
-                     console.log(' Message from ' + this.channelMaps.find((item) => item.id === Number(chatId)).title);
+                     logger.info('------------------------------------------------------');
+                     logger.info(' Message from ' + this.channelMaps.find((item) => item.id === Number(chatId)).title);
+                     logger.info('Analyziz in Progress');
                     let data = await processMessage(event.message); 
-                    if (data) { 
-                        console.log(data)
-
-                        if(data.type == 2){ 
-                            console.log(' Token is a Burned Pool Data');
-                            console.log(data);  
-                            this.em.emit('newSignal', data.result); 
-                        }
+                    if (data) {   
+                        logger.info(JSON.stringify(data));  
+                            this.em.emit('newSignal', data);  
                     }
                 }  
             }

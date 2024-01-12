@@ -33,9 +33,9 @@ export async function sendTx(
     for (const iTx of txs) {
       if (iTx instanceof VersionedTransaction) {
         iTx.sign([payer]);
-        txids.push(await connection.sendTransaction(iTx, {maxRetries:5}));
+        txids.push(await connection.sendTransaction(iTx));
       } else {
-        txids.push(await connection.sendTransaction(iTx, [payer], {maxRetries:5}));
+        txids.push(await connection.sendTransaction(iTx, [payer], options));
       }
     }
   }catch(err){
@@ -118,6 +118,7 @@ export async function buildAndSendTx(innerSimpleV0Transaction: InnerSimpleV0Tran
           // Get transaction details
           const transactionInfo = await connection.getParsedTransaction(transactionSignature[0], {
             commitment: 'confirmed', // 'processed' or 'confirmed'
+            "maxSupportedTransactionVersion": 0
           });
       
           let a=0;
