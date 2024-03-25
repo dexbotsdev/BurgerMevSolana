@@ -2,7 +2,6 @@ import { Connection, PublicKey } from '@solana/web3.js';
 import { RAYDIUM, connection as web3con } from '../config';
 import logger from '../service/Logger';
 import { Metaplex } from '@metaplex-foundation/js';
-import { RaydiumPoolLayout } from './raydium';
 import { WSOL ,LIQUIDITY_STATE_LAYOUT_V4} from '@raydium-io/raydium-sdk';
 import axios from 'axios';
 

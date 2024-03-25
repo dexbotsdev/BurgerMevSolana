@@ -32,9 +32,7 @@ eventEmitter.setMaxListeners(999);
       requestConfig
     ) 
 
-    const tsA = new TelegramAccountService(config, eventEmitter);
-    const pricer = new PricingService(config,provider,wallet);
-    const trader = new TradeService(config,provider,wallet);
+      const trader = new TradeService(config,provider,wallet);
 
 
     eventEmitter.on('newListener', (event: string, listener: any) => {
@@ -163,8 +161,7 @@ eventEmitter.setMaxListeners(999);
     eventEmitter.on('Disconnected', (message: string) => {
       logger.debug('Disconnected -- need to restart ' + message.toUpperCase());
       eventEmitter.removeAllListeners();
-      tsA.disconnect();
-      start();
+       start();
 
     });
 

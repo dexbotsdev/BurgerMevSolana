@@ -29,7 +29,7 @@ export const MAINNET_API_HTTP = 'https://uk.solana.dex.blxrbdn.com'
 export const MAINNET_API_WS = 'wss://uk.solana.dex.blxrbdn.com/ws'
 export const MAINNET_API_GRPC_HOST = 'uk.solana.dex.blxrbdn.com'
 export const MAINNET_API_GRPC_PORT = 443
-export const MAINNET_AUTH_HEADER = 'NThmYjNiMGEtMjY3Ny00MGNkLWIxY2QtZjhkNzQxZDExNzFhOmUzMmMzMGNkZjJjYjU3NGE2ZTM0MWIwZDk3OGE5YWJl' 
+export const MAINNET_AUTH_HEADER = 'ODAzNjVjNTMtZjI0YS00NDQyLThjZWYtNDQxYWM1ZDk3MmQyOjU3YTkzNGZmMTFlZWQxMzU4YWNhZmFkYjkwMmYzZTJl' 
 
 
 
