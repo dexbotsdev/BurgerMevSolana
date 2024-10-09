@@ -15,8 +15,9 @@ import {
   Transaction,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { addLookupTableInfo, connection, makeTxVersion } from '../config';
+import { addLookupTableInfo,  makeTxVersion } from '../config';
 import logger from '../service/Logger';
+import { connection } from './utils';
  
  
 

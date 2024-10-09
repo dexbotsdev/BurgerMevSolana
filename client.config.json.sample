@@ -1,23 +1,9 @@
 {
-  "telegram_api_id": 1349666,
-  "telegram_api_hash": "234cdd3f30e0b5f7d5052209e3c10b31",
-  "dataStoragePath": "./data/account",
-  "followChannels": [
-    "SolanaLiquidityBurns",
-    "pjsols"
-  ],
-  "privateKey":,
-  "takeProfit":100,
-  "stopLoss":50,
-  "checkMintAuth":true,
-  "checkFreezeAuth":true,
-  "minLiquidity": 4,
-  "slippageFixed":0.1,
-  "maxTokenAgeGap":600,
-  "maxTokenMC":100000,
-  "priceRefreshInterval":5,
-  "buyInputAmount":0.1,
-  "sellExpiry":10,
-  "testMode":true
-
+  "privateKey":"",
+  "grpcUrl":"",
+  "grpcToken":null,
+  "rpcUrl":"",
+  "jupApiUrl":"",
+  "slippageFixed":50,  
+  "buyInputAmount":0.25
 }

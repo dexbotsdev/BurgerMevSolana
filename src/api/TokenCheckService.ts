@@ -1,9 +1,10 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { RAYDIUM, connection as web3con } from '../config';
-import logger from '../service/Logger';
+ import logger from '../service/Logger';
 import { Metaplex } from '@metaplex-foundation/js';
 import { WSOL ,LIQUIDITY_STATE_LAYOUT_V4} from '@raydium-io/raydium-sdk';
 import axios from 'axios';
+import { connection } from '../utils/utils';
+import { RAYDIUM } from '../config';
 
 class TokenCheckService {
     private async _analyseMarket(result: any, i: number): Promise<any> {
@@ -102,7 +103,7 @@ class TokenCheckService {
 
     constructor(tokenAddress: string) {
         this.tokenMint = tokenAddress;
-        this.connection = web3con;
+        this.connection = connection;
         this.mint = new PublicKey(tokenAddress);
         this.knownAccounts = JSON.parse('{"5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1":{"name":"Raydium AMM","type":"AMM"},"CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK":{"name":"Raydium CLAMM","type":"AMM"},"CPK8fQYShAmERZmysQRAGWPvV5qs3AvazQsiR9ctC6ED":{"name":"Raydium CLAMM LP","type":"AMM"},"whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc":{"name":"Orca Whirlpool","type":"AMM"},"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v":{"name":"USDC","type":"token"},"USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX":{"name":"USDH","type":"token"},"So11111111111111111111111111111111111111112":{"name":"SOL","type":"token"},"4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R":{"name":"Raydium","type":"token"},"beamazjPnFT3JQoe16HjUxkpmHFfsHY6dTqf3VwBXzq":{"name":"FluxBeam LP","type":"AMM"},"USRfPB8M8pfbrFnEt3FDf3Y8ZmU4G17wcRsWBUK416m":{"name":"FluxBot User Rewards","type":"AMM"},"RESWbt45deYa8F7mQ53pGGJ3XECYC15EGK7cM738mrN":{"name":"FluxBot Reserves","type":"AMM"}}')
         this.result = {

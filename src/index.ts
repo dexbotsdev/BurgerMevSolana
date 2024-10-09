@@ -1,118 +1,97 @@
 import { EventEmitter } from 'emitter'
 import fs from 'fs'
-import logger from './service/Logger'; 
-import TelegramAccountService from './service/TelegramAccountService';
-import { Channels, sequelize, TokenCalls } from './database/db';
-import moment from 'moment';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
-import { Wallet } from '@project-serum/anchor';
+import logger from './service/Logger';
+import { sequelize } from './database/db';
+import { Keypair,LAMPORTS_PER_SOL,PublicKey } from '@solana/web3.js';
 import { bs58 } from '@project-serum/anchor/dist/cjs/utils/bytes';
-import { Liquidity, Market } from '@raydium-io/raydium-sdk';
-import { Metaplex } from '@metaplex-foundation/js';
- 
+import { privateKey } from './clients/jito';
+import { GRPCSwapsListenerService } from './service/GRPCSwapListnerService';
+import TradeExecutorService from './service/TradeExecutorService';
+import { calculateProfitAndRoute } from './service/HelperUtils';
+  
 const eventEmitter = new EventEmitter();
 eventEmitter.setMaxListeners(999);
 
-let config = null;
+
+
  async function start() {
-  await sequelize.sync({ force: false, alter: true });
-
-
-  fs.readFile('./client.config.json', 'utf8', async (error, data) => {
+  await sequelize.sync({ force: false, alter: true }); 
+  fs.readFile('./client.config.json', 'utf8', (error: any, data) => {
     if (error) {
-    //logger.debug(error);
+      logger.debug(error);
       return;
-    }
-    const config = JSON.parse(data); 
-    
-    const connection = new Connection('https://api.mainnet-beta.solana.com', { commitment: "finalized" });
-   
-    const version :  4 | 5 = 4;
-    const serumVersion = 10
-    const marketVersion:3 = 3
-
-    const poolId = new PublicKey("8eve16u96wjbcjB9NW623wyJRbKowaR8wnXncRjKgKen")
-  
-    const programId = new PublicKey('675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8');
-    const serumProgramId = new PublicKey('srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX')
-  
-    const account = await connection.getAccountInfo(poolId)
-    const { state: LiquidityStateLayout }  = Liquidity.getLayouts(version)
-  
-    //@ts-ignore
-    const fields = LiquidityStateLayout.decode(account?.data);
-    const { status, baseMint, quoteMint, lpMint, openOrders, targetOrders, baseVault, quoteVault, marketId, baseDecimal, quoteDecimal, poolOpenTime} = fields;
-  
-    let withdrawQueue, lpVault;
-    if (Liquidity.isV4(fields)) {
-      withdrawQueue = fields.withdrawQueue;
-      lpVault = fields.lpVault;
-    } else {
-      withdrawQueue = PublicKey.default;
-      lpVault = PublicKey.default;
-    }
-    
-    // uninitialized
-    // if (status.isZero()) {
-    //   return ;
-    // }
-  
-    const associatedPoolKeys = Liquidity.getAssociatedPoolKeys({
-      version:version,
-      marketVersion,
-      marketId,
-      baseMint: baseMint,
-      quoteMint:quoteMint,
-      baseDecimals: baseDecimal.toNumber(),
-      quoteDecimals: quoteDecimal.toNumber(),
-      programId,
-      marketProgramId:serumProgramId,
-    });
-  
-    const poolKeys = {
-      id: poolId,
-      baseMint,
-      quoteMint,
-      lpMint,
-      version,
-      programId,
-  
-      authority: associatedPoolKeys.authority,
-      openOrders,
-      targetOrders,
-      baseVault,
-      quoteVault,
-      withdrawQueue,
-      lpVault,
-      marketVersion: serumVersion,
-      marketProgramId: serumProgramId,
-      marketId,
-      marketAuthority: associatedPoolKeys.marketAuthority,
-    };
-  
-    const marketInfo = await connection.getAccountInfo(marketId);
-    const { state: MARKET_STATE_LAYOUT } = Market.getLayouts(marketVersion);
-    //@ts-ignore
-    const market = MARKET_STATE_LAYOUT.decode(marketInfo.data);
-
-    console.log(new Date(1000*Number(poolOpenTime.toString())).toString());
-
-    const tokenMint = market.baseMint;
-
-    const metaplex = Metaplex.make(connection);
-   
+    } 
+    const config = JSON.parse(data);
+    let testmode = config.testMode; 
+    const wallet = Keypair.fromSecretKey(bs58.decode(config.privateKey));
      
-    const token = await metaplex.nfts().findByMint({ mintAddress: tokenMint });
-    let tokenName = token.name;
-    let tokenSymbol = token.symbol;
-    let sellerFeeBasisPoints = token.mint.supply.basisPoints.toString();
-    let tokenDecimals = token.mint.decimals;
- 
-     console.log(tokenName);
-    console.log(tokenSymbol);
-    console.log(sellerFeeBasisPoints.toString());
-    console.log(tokenDecimals     ); 
- 
+    const grpcSwaps = new GRPCSwapsListenerService(config.grpcUrl,config.grpcToken,undefined,eventEmitter);
+
+   
+
+    grpcSwaps.streamTargetTrader();
+    eventEmitter.on('newListener', (event: string, listener: any) => {
+      logger.debug(`Added  ${event.toUpperCase()} listener.`);
+    });
+    eventEmitter.on('newSwapDetected', async (tradeSignal: any) => {
+      //logger.debug('newSwapDetected Received ',tradeSignal);
+
+     // eventEmitter.removeAllListeners();
+      const signal = JSON.parse(tradeSignal) 
+       const insol = config.buyInputAmount*1e9
+         let quoteResponseA = await (
+          await fetch(config.jupApiUrl+`/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=${signal.token}&amount=${insol}&slippageBps=50`)
+        ).json();
+       // console.log(quoteResponseA)
+        
+        let quoteResponseB = await (
+          await fetch(config.jupApiUrl+`/quote?outputMint=So11111111111111111111111111111111111111112&inputMint=${signal.token}&amount=${quoteResponseA.otherAmountThreshold}&slippageBps=50`)
+        ).json();
+       //console.log(quoteResponseB)
+
+         if(1<100*(quoteResponseB.otherAmountThreshold - quoteResponseA.inAmount)/quoteResponseA.inAmount){
+
+          console.log(`Big WIN hahha ${signal.token} `)
+          const profit = calculateProfitAndRoute(quoteResponseA,quoteResponseB) 
+
+          if(profit>0){ 
+            console.log(`Run Trade for Profit of ${profit} `);
+            const tokenAddress = quoteResponseA.outputMint;
+
+
+            const trader = new TradeExecutorService(config.jupApiUrl,config.rpcUrl);
+
+            await trader.executeTrade(tokenAddress,config.privateKey,quoteResponseA.inAmount);
+
+          }
+
+
+        }
+
+
+
+        
+       
+    }); 
+    eventEmitter.on('tokenTraded', async (monitor: any) => {
+
+      logger.sponsor(JSON.stringify(monitor,null,0));
+      
+
+    })
+
+
+    eventEmitter.on('Disconnected', (message: string) => {
+      logger.debug('Disconnected -- need to restart ' + message.toUpperCase());
+      eventEmitter.removeAllListeners();
+       start();
+
+    });
+
+
+
+
+
   })
 }
 

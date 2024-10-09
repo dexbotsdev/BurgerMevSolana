@@ -2,7 +2,7 @@ import { Sequelize, DataTypes, Model } from 'sequelize';
 
 export const sequelize = new Sequelize({
   dialect: 'sqlite',
-  storage: './data/butosniper.sqlite',
+  storage: './data/burgersniper.sqlite',
   logging: false,
   pool: {
     max: 100,
@@ -13,166 +13,75 @@ export const sequelize = new Sequelize({
 });
 
 
-class TradeLogs extends Model { 
+class TokenLogs extends Model {
 };
 
 
 
-class TokenCalls extends Model { 
+class TradeTrigger extends Model {
 };
 
 
-class UpdateLogs extends Model{ 
 
-}
- 
-    
-TradeLogs.init({
+
+TokenLogs.init({
   // Model attributes are defined here
   id: {
     type: DataTypes.INTEGER,
     autoIncrement: true,
     primaryKey: true
-  }, 
+  },
   tokenAddress: {
     type: DataTypes.STRING,
-    allowNull: true,
+    allowNull: false,
   },
-  tokenSymbol: {
+  poolData: {
     type: DataTypes.STRING,
-    allowNull: true,
+    allowNull: false,
+  }
+},
+  {
+    tableName: 'TokenLogs',
+    sequelize,
+  });
+
+TradeTrigger.init({
+  // Model attributes are defined here
+  id: {
+    type: DataTypes.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
   },
-  buyTime: {
-    type: DataTypes.DATE,
-    defaultValue:Date.now(),
+  userSoldToken: {
+    type: DataTypes.STRING,
     allowNull: false,
   },
-  buyAmount: {
-    type: DataTypes.NUMBER,
-    defaultValue:0,
+  userSoldAmount: {
+    type: DataTypes.FLOAT,
     allowNull: false,
-  }, 
-  avgBuyPrice: {
-    type: DataTypes.NUMBER,
-    defaultValue:0,
+  },
+  userSoldSol: {
+    type: DataTypes.FLOAT,
     allowNull: false,
-  }, 
-  tokenBalance: {
-    type: DataTypes.NUMBER,
-    defaultValue:0,
-    allowNull: false,
-  },  
-  sellTime: {
+  },
+  timeOfsellOff: {
     type: DataTypes.DATE,
-    allowNull: true,
-  }, 
-  sellAmount: {
-    type: DataTypes.NUMBER,
-    defaultValue:0,
     allowNull: false,
-  }, 
-  sold: {
+  },
+  userAddress: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  newTrigger: {
     type: DataTypes.BOOLEAN,
-    defaultValue:false,
     allowNull: false,
-  }, 
+  }
 },
   {
-    tableName: 'TradeLogs',
+    tableName: 'TradeTrigger',
     sequelize,
   });
 
-UpdateLogs.init({
-  // Model attributes are defined here
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true
-  },
-  lastMessageId: {
-    type: DataTypes.INTEGER, 
-    unique:true,
-    allowNull: false
-  },
-  tokenAddress: {
-    type: DataTypes.STRING,
-    allowNull: true
-  }, 
-},
-  {
-    tableName: 'UpdateLogs',
-    sequelize,
-  });
 
-  class Channels extends Model {
 
-  }; 
-    
-TokenCalls.init({
-  // Model attributes are defined here
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true
-  }, 
-  tokenAddress: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  pairAddress: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  tokenSymbol: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  },
-  tokenName: {
-    type: DataTypes.STRING,
-    allowNull: true,
-  }, 
-},
-  {
-    tableName: 'TokenCalls',
-    sequelize,
-  });
-
-  Channels.init({
-    // Model attributes are defined here
-    id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true
-    },
-    channelId: {
-      type: DataTypes.INTEGER, 
-      unique:true,
-      allowNull: false
-    },
-    channelName: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    channelTitle: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
-    enabled: {
-      type: DataTypes.BOOLEAN,
-      defaultValue:false,
-      allowNull: true,
-    }, 
-    isAlpha: {
-      type: DataTypes.BOOLEAN,
-      defaultValue:false,
-      allowNull: true,
-    }, 
-  },
-    {
-      tableName: 'Channels',
-      sequelize,
-    });
-  
- 
-      
-export { TokenCalls, Channels ,UpdateLogs,TradeLogs };
+export { TokenLogs, TradeTrigger };
